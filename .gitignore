@@ -1,0 +1,4 @@
+
+# Ignore all BMP image files
+*.bmp
+.idea/
