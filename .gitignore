@@ -1,4 +1,4 @@
 
 # Ignore all BMP image files
-*.bmp
+*.wav
 .idea/
