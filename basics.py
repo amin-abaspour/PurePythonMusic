@@ -328,3 +328,154 @@ write_wav('./output/triangle_tone.wav', triangle_samples, 44100)
 # Generate and save a 440 Hz sawtooth wave for 2 seconds
 sawtooth_samples = generate_sawtooth_samples(frequency=440, duration=2, sample_rate=44100, amplitude=32767, terms=10)
 write_wav('./output/sawtooth_tone.wav', sawtooth_samples, 44100)
+
+# --- ADSR Envelope Functions ---
+
+def apply_adsr(samples, sample_rate, attack_time, decay_time, sustain_level, release_time):
+    """
+    Applies an ADSR envelope to the given samples.
+    
+    Parameters:
+        samples (list[int]): The samples to modify.
+        sample_rate (int): Sample rate in Hz.
+        attack_time (float): Attack time in seconds.
+        decay_time (float): Decay time in seconds.
+        sustain_level (float): Sustain amplitude level (0.0 to 1.0).
+        release_time (float): Release time in seconds.
+        
+    Returns:
+        list[int]: The samples with ADSR envelope applied.
+    """
+    
+    total_samples = len(samples)
+    attack_samples = int(attack_time * sample_rate)
+    decay_samples = int(decay_time * sample_rate)
+    release_samples = int(release_time * sample_rate)
+    
+    # The main portion (sustain phase) starts after attack+decay and goes until we hit the release at the end.
+    sustain_start = attack_samples + decay_samples
+    sustain_end = total_samples - release_samples
+    
+    # Prevent invalid segments if durations are too large or short.
+    if sustain_end < sustain_start:
+        sustain_end = sustain_start
+    
+    # Apply ADSR
+    modified_samples = []
+    
+    for i, sample in enumerate(samples):
+        if i < attack_samples:
+            # Attack phase: ramp from 0.0 to 1.0
+            env = (i / attack_samples) if attack_samples > 0 else 1.0
+        elif i < sustain_start:
+            # Decay phase: ramp down from 1.0 to sustain_level
+            decay_pos = i - attack_samples
+            env = 1.0 - (1.0 - sustain_level) * (decay_pos / decay_samples if decay_samples > 0 else 1.0)
+        elif i < sustain_end:
+            # Sustain phase: hold at sustain_level
+            env = sustain_level
+        else:
+            # Release phase: ramp down from sustain_level to 0.0
+            release_pos = i - sustain_end
+            env = sustain_level * (1.0 - (release_pos / release_samples if release_samples > 0 else 1.0))
+        
+        # Apply the envelope to the sample and clamp
+        new_sample = int(sample * env)
+        clamped_sample = clamp(new_sample, -32768, 32767)
+        modified_samples.append(clamped_sample)
+    
+    return modified_samples
+
+# --- Example Usage of ADSR Envelope ---
+
+# Let's generate a 440 Hz sine wave for 2 seconds, then apply an ADSR envelope:
+adsr_sample_rate = 44100
+adsr_frequency = 440
+adsr_duration = 2.0
+adsr_amplitude = 32767
+
+# Generate plain sine samples
+adsr_samples = generate_samples(adsr_frequency, adsr_duration, adsr_sample_rate, adsr_amplitude)
+
+# Apply an ADSR envelope: 
+# Attack: 0.2s, Decay: 0.2s, Sustain: 0.5 (50%), Release: 0.5s
+adsr_samples = apply_adsr(adsr_samples, adsr_sample_rate, attack_time=0.2, decay_time=0.2, sustain_level=0.5, release_time=0.5)
+
+# Save the resulting sound to a WAV file
+write_wav('./output/sine_with_adsr.wav', adsr_samples, adsr_sample_rate)
+
+
+# --- ADSR Envelope Functions ---
+
+def apply_adsr(samples, sample_rate, attack_time, decay_time, sustain_level, release_time):
+    """
+    Applies an ADSR envelope to the given samples.
+    
+    Parameters:
+        samples (list[int]): The samples to modify.
+        sample_rate (int): Sample rate in Hz.
+        attack_time (float): Attack time in seconds.
+        decay_time (float): Decay time in seconds.
+        sustain_level (float): Sustain amplitude level (0.0 to 1.0).
+        release_time (float): Release time in seconds.
+        
+    Returns:
+        list[int]: The samples with ADSR envelope applied.
+    """
+    
+    total_samples = len(samples)
+    attack_samples = int(attack_time * sample_rate)
+    decay_samples = int(decay_time * sample_rate)
+    release_samples = int(release_time * sample_rate)
+    
+    # The main portion (sustain phase) starts after attack+decay and goes until we hit the release at the end.
+    sustain_start = attack_samples + decay_samples
+    sustain_end = total_samples - release_samples
+    
+    # Prevent invalid segments if durations are too large or short.
+    if sustain_end < sustain_start:
+        sustain_end = sustain_start
+    
+    # Apply ADSR
+    modified_samples = []
+    
+    for i, sample in enumerate(samples):
+        if i < attack_samples:
+            # Attack phase: ramp from 0.0 to 1.0
+            env = (i / attack_samples) if attack_samples > 0 else 1.0
+        elif i < sustain_start:
+            # Decay phase: ramp down from 1.0 to sustain_level
+            decay_pos = i - attack_samples
+            env = 1.0 - (1.0 - sustain_level) * (decay_pos / decay_samples if decay_samples > 0 else 1.0)
+        elif i < sustain_end:
+            # Sustain phase: hold at sustain_level
+            env = sustain_level
+        else:
+            # Release phase: ramp down from sustain_level to 0.0
+            release_pos = i - sustain_end
+            env = sustain_level * (1.0 - (release_pos / release_samples if release_samples > 0 else 1.0))
+        
+        # Apply the envelope to the sample and clamp
+        new_sample = int(sample * env)
+        clamped_sample = clamp(new_sample, -32768, 32767)
+        modified_samples.append(clamped_sample)
+    
+    return modified_samples
+
+# --- Example Usage of ADSR Envelope ---
+
+# Let's generate a 440 Hz sine wave for 2 seconds, then apply an ADSR envelope:
+adsr_sample_rate = 44100
+adsr_frequency = 440
+adsr_duration = 2.0
+adsr_amplitude = 32767
+
+# Generate plain sine samples
+adsr_samples = generate_samples(adsr_frequency, adsr_duration, adsr_sample_rate, adsr_amplitude)
+
+# Apply an ADSR envelope: 
+# Attack: 0.2s, Decay: 0.2s, Sustain: 0.5 (50%), Release: 0.5s
+adsr_samples = apply_adsr(adsr_samples, adsr_sample_rate, attack_time=0.2, decay_time=0.2, sustain_level=0.5, release_time=0.5)
+
+# Save the resulting sound to a WAV file
+write_wav('./output/sine_with_adsr.wav', adsr_samples, adsr_sample_rate)
