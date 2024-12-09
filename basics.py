@@ -1,3 +1,5 @@
+import math
+import random
 
 # Custom factorial function
 def factorial(n):
@@ -10,13 +12,17 @@ def factorial(n):
 
 # Custom sine function using Taylor series
 def sine(x, terms=10):
-    x %= 2 * 3.141592653589793  # Reduce to within 0 to 2π
+    x %= 2 * math.pi  # Reduce to within 0 to 2π
     result = 0
     for n in range(terms):
         coef = (-1) ** n  # Alternate between addition and subtraction
         power = 2 * n + 1
         result += coef * (x ** power) / factorial(power)
     return result
+
+# Clamp function to restrict values within a range
+def clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
 
 # Generate raw audio samples
 def generate_samples(frequency, duration, sample_rate, amplitude):
@@ -25,40 +31,45 @@ def generate_samples(frequency, duration, sample_rate, amplitude):
     for n in range(total_samples):
         t = n / sample_rate
         # Generate sine wave sample
-        sample = amplitude * sine(2 * 3.141592653589793 * frequency * t)
-        samples.append(int(sample))  # Quantize to integer
+        sample = amplitude * sine(2 * math.pi * frequency * t)
+        clamped_sample = clamp(int(sample), -32768, 32767)
+        samples.append(clamped_sample)  # Quantize to integer
     return samples
 
 # Write WAV file manually
 def write_wav(filename, samples, sample_rate):
-    # WAV file header components
     num_channels = 1  # Mono
     bytes_per_sample = 2  # 16-bit
     num_samples = len(samples)
     byte_rate = sample_rate * num_channels * bytes_per_sample
     block_align = num_channels * bytes_per_sample
+    max_amplitude = 32767
+    min_amplitude = -32768
 
     with open(filename, 'wb') as f:
         # RIFF header
         f.write(b'RIFF')
-        f.write((36 + num_samples * bytes_per_sample).to_bytes(4, 'little'))  # File size
+        f.write((36 + num_samples * bytes_per_sample).to_bytes(4, 'little'))
         f.write(b'WAVE')
 
-        # Format chunk
+        # fmt subchunk
         f.write(b'fmt ')
         f.write((16).to_bytes(4, 'little'))  # Subchunk size
         f.write((1).to_bytes(2, 'little'))  # Audio format (1 = PCM)
-        f.write((num_channels).to_bytes(2, 'little'))  # Num channels
-        f.write((sample_rate).to_bytes(4, 'little'))  # Sample rate
-        f.write((byte_rate).to_bytes(4, 'little'))  # Byte rate
-        f.write((block_align).to_bytes(2, 'little'))  # Block align
+        f.write((num_channels).to_bytes(2, 'little'))
+        f.write((sample_rate).to_bytes(4, 'little'))
+        f.write((byte_rate).to_bytes(4, 'little'))
+        f.write((block_align).to_bytes(2, 'little'))
         f.write((bytes_per_sample * 8).to_bytes(2, 'little'))  # Bits per sample
 
-        # Data chunk
+        # data subchunk
         f.write(b'data')
-        f.write((num_samples * bytes_per_sample).to_bytes(4, 'little'))  # Data size
+        f.write((num_samples * bytes_per_sample).to_bytes(4, 'little'))
+
         for sample in samples:
-            f.write(int(sample).to_bytes(2, 'little', signed=True))  # 16-bit PCM data
+            # Clamp the sample to 16-bit range
+            clamped_sample = clamp(sample, min_amplitude, max_amplitude)
+            f.write(int(clamped_sample).to_bytes(2, 'little', signed=True))
 
 # Generate a 440 Hz tone for 2 seconds
 sample_rate = 44100
@@ -67,8 +78,7 @@ duration = 2  # Seconds
 amplitude = 32767  # Max amplitude for 16-bit audio
 
 samples = generate_samples(frequency, duration, sample_rate, amplitude)
-write_wav('pure_tone.wav', samples, sample_rate)
-
+write_wav('./output/pure_tone.wav', samples, sample_rate)
 
 # Frequency mapping for musical notes (in Hz)
 NOTE_FREQUENCIES = {
@@ -85,8 +95,12 @@ def generate_melody(melody, sample_rate, amplitude):
         num_samples = int(sample_rate * duration)
         for n in range(num_samples):
             t = n / sample_rate
-            sample = amplitude * sine(2 * 3.141592653589793 * frequency * t) if frequency > 0 else 0
-            samples.append(int(sample))  # Quantize to integer
+            if frequency > 0:
+                sample = amplitude * sine(2 * math.pi * frequency * t)
+                clamped_sample = clamp(int(sample), -32768, 32767)
+            else:
+                clamped_sample = 0  # REST
+            samples.append(clamped_sample)  # Quantize to integer
     return samples
 
 # Example melody: Twinkle, Twinkle, Little Star
@@ -98,12 +112,8 @@ melody = [
 ]
 
 # Generate and save the melody
-sample_rate = 44100
-amplitude = 32767  # Max amplitude for 16-bit audio
-
 samples = generate_melody(melody, sample_rate, amplitude)
-write_wav('twinkle_twinkle.wav', samples, sample_rate)
-
+write_wav('./output/twinkle_twinkle.wav', samples, sample_rate)
 
 # Generate raw audio samples for chords
 def generate_chord(chord, duration, sample_rate, amplitude):
@@ -112,8 +122,15 @@ def generate_chord(chord, duration, sample_rate, amplitude):
     num_samples = int(sample_rate * duration)
     for n in range(num_samples):
         t = n / sample_rate
-        sample = sum(amplitude * sine(2 * 3.141592653589793 * freq * t) for freq in frequencies if freq > 0) / len(chord)
-        samples.append(int(sample))  # Quantize to integer
+        if frequencies:
+            # Sum the sine waves of each note in the chord
+            sample_sum = sum(sine(2 * math.pi * freq * t) for freq in frequencies if freq > 0)
+            sample = amplitude * sample_sum / len(frequencies)  # Normalize
+            clamped_sample = clamp(int(sample), -32768, 32767)
+        else:
+            sample = 0
+            clamped_sample = 0
+        samples.append(clamped_sample)  # Quantize to integer
     return samples
 
 # Generate raw audio samples for a melody with chords
@@ -141,24 +158,29 @@ melody_with_chords = [
 
 # Generate and save the melody with chords
 samples = generate_melody_with_chords(melody_with_chords, sample_rate, amplitude)
-write_wav('melody_with_chords.wav', samples, sample_rate)
+write_wav('./output/melody_with_chords.wav', samples, sample_rate)
 
 # Generate raw audio samples for a melody with chords, rests, and dynamic volume
 def generate_melody_with_features(melody, sample_rate, base_amplitude, tempo=1.0):
     samples = []
     for item in melody:
-        duration = item[1] / tempo  # Adjust duration by tempo
         if isinstance(item[0], list):  # Chord (list of notes with optional volume scaling)
-            notes = [(NOTE_FREQUENCIES.get(note[0], 0), note[1] if len(note) > 1 else 1.0) for note in item[0]]
-            chord_samples = generate_chord_with_volume(notes, duration, sample_rate, base_amplitude)
+            chord = [(NOTE_FREQUENCIES.get(note[0], 0), note[1] if len(note) > 1 else 1.0) for note in item[0]]
+            chord_samples = generate_chord_with_volume(chord, item[1] / tempo, sample_rate, base_amplitude)
             samples.extend(chord_samples)
         elif item[0] == "REST":  # Rest
+            duration = item[1] / tempo
             samples.extend([0] * int(sample_rate * duration))
         else:  # Single note with optional volume scaling
-            frequency = NOTE_FREQUENCIES.get(item[0], 0)
+            note = item[0]
+            duration = item[1] / tempo
             volume_scale = item[2] if len(item) > 2 else 1.0
-            note_samples = generate_samples(frequency, duration, sample_rate, int(base_amplitude * volume_scale))
-            samples.extend(note_samples)
+            frequency = NOTE_FREQUENCIES.get(note, 0)
+            if frequency > 0:
+                note_samples = generate_samples(frequency, duration, sample_rate, int(base_amplitude * volume_scale))
+                samples.extend(note_samples)
+            else:
+                samples.extend([0] * int(sample_rate * duration))  # REST
     return samples
 
 # Generate raw audio samples for chords with dynamic volume
@@ -167,11 +189,14 @@ def generate_chord_with_volume(chord, duration, sample_rate, amplitude):
     num_samples = int(sample_rate * duration)
     for n in range(num_samples):
         t = n / sample_rate
-        sample = sum(
-            amplitude * scale * sine(2 * 3.141592653589793 * freq * t) 
-            for freq, scale in chord if freq > 0
-        ) / len(chord)
-        samples.append(int(sample))  # Quantize to integer
+        active_notes = [scale * sine(2 * math.pi * freq * t) for freq, scale in chord if freq > 0]
+        if active_notes:
+            sample_sum = sum(active_notes)
+            sample = (amplitude * sample_sum) / len(active_notes)
+            clamped_sample = clamp(int(sample), -32768, 32767)
+        else:
+            clamped_sample = 0
+        samples.append(clamped_sample)  # Quantize to integer
     return samples
 
 # Support for text-based melody input
@@ -185,6 +210,9 @@ def parse_melody_from_text(input_text):
     """
     melody = []
     for line in input_text.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue  # Skip empty lines
         if line.startswith("["):  # Chord
             chord_part, duration = line.split("],")
             duration = float(duration)
@@ -220,5 +248,83 @@ parsed_melody = parse_melody_from_text(text_input)
 
 # Generate and save the melody with features
 tempo = 1.2  # Adjust tempo (1.0 = original speed, >1.0 = faster, <1.0 = slower)
-samples = generate_melody_with_features(parsed_melody, sample_rate, amplitude, tempo)
-write_wav('melody_with_features.wav', samples, sample_rate)
+base_amplitude = 32767  # Max amplitude for 16-bit audio
+
+samples = generate_melody_with_features(parsed_melody, sample_rate, base_amplitude, tempo)
+write_wav('./output/melody_with_features.wav', samples, sample_rate)
+
+# --- New Waveform Functions ---
+
+# Square Wave using Fourier series
+def square(x, terms=10):
+    x %= 2 * math.pi
+    result = 0
+    for n in range(terms):
+        k = 2 * n + 1
+        result += (1 / k) * sine(k * x)
+    return (4 / math.pi) * result  # Normalize to approximately [-1.2732, 1.2732]
+
+# Triangle Wave using Fourier series
+def triangle(x, terms=10):
+    x %= 2 * math.pi
+    result = 0
+    for n in range(terms):
+        k = 2 * n + 1
+        coef = ((-1) ** n) / (k ** 2)
+        result += coef * sine(k * x)
+    return (8 / (math.pi ** 2)) * result  # Normalize to approximately [-0.809, 0.809]
+
+# Sawtooth Wave using Fourier series
+def sawtooth(x, terms=10):
+    x %= 2 * math.pi
+    result = 0
+    for k in range(1, terms + 1):
+        result += (1 / k) * sine(k * x)
+    return (2 / math.pi) * result  # Normalize to approximately [-0.6366, 0.6366]
+
+# Generate Square Wave samples
+def generate_square_samples(frequency, duration, sample_rate, amplitude, terms=10):
+    samples = []
+    total_samples = int(sample_rate * duration)
+    for n in range(total_samples):
+        t = n / sample_rate
+        sample = amplitude * square(2 * math.pi * frequency * t, terms)
+        clamped_sample = clamp(int(sample), -32768, 32767)
+        samples.append(clamped_sample)
+    return samples
+
+# Generate Triangle Wave samples
+def generate_triangle_samples(frequency, duration, sample_rate, amplitude, terms=10):
+    samples = []
+    total_samples = int(sample_rate * duration)
+    for n in range(total_samples):
+        t = n / sample_rate
+        sample = amplitude * triangle(2 * math.pi * frequency * t, terms)
+        clamped_sample = clamp(int(sample), -32768, 32767)
+        samples.append(clamped_sample)
+    return samples
+
+# Generate Sawtooth Wave samples
+def generate_sawtooth_samples(frequency, duration, sample_rate, amplitude, terms=10):
+    samples = []
+    total_samples = int(sample_rate * duration)
+    for n in range(total_samples):
+        t = n / sample_rate
+        sample = amplitude * sawtooth(2 * math.pi * frequency * t, terms)
+        clamped_sample = clamp(int(sample), -32768, 32767)
+        samples.append(clamped_sample)
+    return samples
+
+# --- Example Usages ---
+
+# Generate and save a 440 Hz square wave for 2 seconds
+square_samples = generate_square_samples(frequency=440, duration=2, sample_rate=44100, amplitude=32767, terms=10)
+write_wav('./output/square_tone.wav', square_samples, 44100)
+
+# Generate and save a 440 Hz triangle wave for 2 seconds
+triangle_samples = generate_triangle_samples(frequency=440, duration=2, sample_rate=44100, amplitude=32767, terms=10)
+write_wav('./output/triangle_tone.wav', triangle_samples, 44100)
+
+# Generate and save a 440 Hz sawtooth wave for 2 seconds
+sawtooth_samples = generate_sawtooth_samples(frequency=440, duration=2, sample_rate=44100, amplitude=32767, terms=10)
+write_wav('./output/sawtooth_tone.wav', sawtooth_samples, 44100)
