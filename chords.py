@@ -30,10 +30,6 @@ def build_chord(root, chord_type='major', duration=0.5):
         chord.append((note_name, duration))  # Assuming a default duration of 0.5 seconds
     return chord
 
-
-
-
-
 Exmaple_CHORDS = [
     {"name": "C Major", "root": "C4", "type": "major"},
     {"name": "C# Major", "root": "C#4", "type": "major"},
@@ -72,7 +68,6 @@ Exmaple_CHORDS = [
     {"name": "Caug", "root": "C4", "type": "augmented"},
     {"name": "C#aug", "root": "C#4", "type": "augmented"},
 ]
-
 
 simple_chord = [
     [("C4", 0.5), ("E4", 0.5), ("G4", 0.5)],  # C Major
