@@ -1,7 +1,7 @@
-
 from mathematics import clamp
 from waves import sine_wave
 from notes import NOTES
+from filters import low_pass_filter
 
 def write_wav(filename, samples, sample_rate):
     with open(filename, 'wb') as f:
@@ -58,15 +58,16 @@ def apply_adsr(samples, sample_rate, attack=0.1, decay=0.1, sustain_level=0.7, r
     # Apply envelope
     return [sample * env for sample, env in zip(samples, envelope)]
 
-def melody_with_adsr(melody, sample_rate, wave_type=sine_wave, attack=0.1, decay=0.1, sustain_level=0.7, release=0.2):
+def melody_with_adsr(melody, sample_rate, wave_type=sine_wave, attack=0.1, decay=0.1, sustain_level=0.7, release=0.2, cutoff_frequency=5000):
     samples = []
     for note, duration in melody:
         raw_wave = note_to_wave(note, duration, sample_rate, wave_type)
         shaped_wave = apply_adsr(raw_wave, sample_rate, attack, decay, sustain_level, release)
-        samples.extend(shaped_wave)
+        filtered_wave = low_pass_filter(shaped_wave, cutoff_frequency, sample_rate)
+        samples.extend(filtered_wave)
     return samples
 
-def polyphony_to_wave(chords, sample_rate, wave_type=sine_wave, use_adsr=True, attack=0.1, decay=0.1, sustain_level=0.7, release=0.2):
+def polyphony_to_wave(chords, sample_rate, wave_type=sine_wave, use_adsr=True, attack=0.1, decay=0.1, sustain_level=0.7, release=0.2, cutoff_frequency=5000):
     """Generate waveforms for polyphonic (chord) playback with ADSR and amplitude normalization."""
     max_length = max(int(note[1] * sample_rate) for chord in chords for note in chord)
     combined_wave = [0.0] * max_length
@@ -77,7 +78,8 @@ def polyphony_to_wave(chords, sample_rate, wave_type=sine_wave, use_adsr=True, a
             note_wave = note_to_wave(note, duration, sample_rate, wave_type)
             if use_adsr:
                 note_wave = apply_adsr(note_wave, sample_rate, attack, decay, sustain_level, release)
-            for i, sample in enumerate(note_wave):
+            filtered_wave = low_pass_filter(note_wave, cutoff_frequency, sample_rate)
+            for i, sample in enumerate(filtered_wave):
                 chord_wave[i] += sample / len(chord)  # Normalize per chord
         combined_wave = [a + b for a, b in zip(combined_wave, chord_wave)]
 
@@ -88,7 +90,7 @@ def polyphony_to_wave(chords, sample_rate, wave_type=sine_wave, use_adsr=True, a
     return combined_wave
 
 
-def chords_to_wave(chords, sample_rate, wave_type=sine_wave, use_adsr=True, attack=0.05, decay=0.05, sustain_level=0.7, release=0.05):
+def chords_to_wave(chords, sample_rate, wave_type=sine_wave, use_adsr=True, attack=0.05, decay=0.05, sustain_level=0.7, release=0.05, cutoff_frequency=5000):
     """
     Generate waveforms for a sequence of chords with polyphony and ADSR envelope.
 
@@ -101,6 +103,7 @@ def chords_to_wave(chords, sample_rate, wave_type=sine_wave, use_adsr=True, atta
         decay (float): Decay time in seconds.
         sustain_level (float): Sustain level (0 to 1).
         release (float): Release time in seconds.
+        cutoff_frequency (float): Cutoff frequency for the low-pass filter.
 
     Returns:
         list: Combined waveform samples.
@@ -117,9 +120,10 @@ def chords_to_wave(chords, sample_rate, wave_type=sine_wave, use_adsr=True, atta
             note_wave = note_to_wave(note, duration, sample_rate, wave_type)
             if use_adsr:
                 note_wave = apply_adsr(note_wave, sample_rate, attack, decay, sustain_level, release)
+            filtered_wave = low_pass_filter(note_wave, cutoff_frequency, sample_rate)
             # Mix the note into the chord waveform
-            for i in range(min(len(note_wave), chord_length)):
-                chord_wave[i] += note_wave[i] / len(chord)  # Normalize by number of notes
+            for i in range(min(len(filtered_wave), chord_length)):
+                chord_wave[i] += filtered_wave[i] / len(chord)  # Normalize by number of notes
 
         # Normalize chord_wave to prevent clipping within the chord
         max_amplitude = max(abs(sample) for sample in chord_wave)

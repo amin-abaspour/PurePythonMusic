@@ -3,8 +3,8 @@ from waves import sine_wave, square_wave, triangle_wave, sawtooth_wave
 from chords import build_chord
 from songs import twinkle_twinkle, ode_to_joy
 
-# Define a dynamic harmony sequence
-harmony_sequence = [
+# Define a smooth harmony sequence
+smooth_harmony_sequence = [
     {"type": "chord", "root": "C4", "chord_type": "major", "duration": 1.0, "wave_type": sine_wave},
     {"type": "melody", "notes": ["E4", "F4", "G4"], "durations": [0.5, 0.5, 1.0], "wave_type": triangle_wave},
     {"type": "chord", "root": "D4", "chord_type": "minor", "duration": 1.0, "wave_type": sawtooth_wave},
@@ -13,7 +13,7 @@ harmony_sequence = [
 ]
 
 # Generate wave samples for the sequence
-def generate_dynamic_harmony(sequence, sample_rate=44100, attack=0.05, decay=0.05, sustain_level=0.7, release=0.1, cutoff_frequency=5000):
+def generate_smooth_harmony(sequence, sample_rate=44100, attack=0.05, decay=0.05, sustain_level=0.7, release=0.1, cutoff_frequency=5000):
     samples = []
     for segment in sequence:
         if segment["type"] == "chord":
@@ -28,10 +28,10 @@ def generate_dynamic_harmony(sequence, sample_rate=44100, attack=0.05, decay=0.0
             samples.extend(melody_wave)
     return samples
 
-# Generate the dynamic harmony sequence samples
-samples = generate_dynamic_harmony(harmony_sequence)
+# Generate the smooth harmony sequence samples
+samples = generate_smooth_harmony(smooth_harmony_sequence)
 
 # Write the output to a WAV file
-write_wav("./output/dynamic_harmony_sequence.wav", samples, 44100)
+write_wav("./output/smooth_harmony_sequence.wav", samples, 44100)
 
-print("Dynamic harmony sequence generated and saved as 'dynamic_harmony_sequence.wav'")
+print("Smooth harmony sequence generated and saved as 'smooth_harmony_sequence.wav'")
